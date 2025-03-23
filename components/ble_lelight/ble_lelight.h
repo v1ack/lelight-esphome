@@ -54,7 +54,7 @@ class BleLeLight : public light::LightOutput,
   void set_tx_power(esp_power_level_t val) { this->tx_power_ = val; }
   void set_encoder(const std::string &hex);
 
-  std::unique_ptr<light::LightTransformer> create_default_transition() {
+  std::unique_ptr<light::LightTransformer> create_default_transition() override {
     return make_unique<NoLightTransitionTransformer>();
   }
 
