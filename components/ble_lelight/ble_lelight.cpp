@@ -123,6 +123,12 @@ void BleLeLight::loop() {
 }
 
 void BleLeLight::write_state(light::LightState *state) {
+
+  // prevent from sending commands if there are any in the queue
+  if (!this->lamp_commands_queue.empty()) {
+    return;
+  }
+
   float color_temperature = 0.0f, brightness = 0.0f;
   state->current_values_as_ct(&color_temperature, &brightness);
 

@@ -2,6 +2,7 @@
 
 #include "esphome/components/esp32_ble/ble.h"
 #include "esphome/components/light/light_output.h"
+#include "esphome/components/light/transformers.h"
 #include "esphome/core/component.h"
 
 #ifdef USE_ESP32
@@ -22,7 +23,17 @@ struct LeLampCommand {
   float value;
 };
 
-class BleLeLight : public light::LightOutput, public Component, public Parented<ESP32BLE> {
+class NoLightTransitionTransformer : public light::LightTransitionTransformer {
+ public:
+  void setup(const light::LightColorValues &start_values, const light::LightColorValues &target_values,
+             uint32_t length) {
+    light::LightTransitionTransformer::setup(start_values, target_values, 0);
+  }
+};
+
+class BleLeLight : public light::LightOutput,
+                   public Component,
+                   public Parented<ESP32BLE> {
  public:
   void setup() override;
   void loop() override;
@@ -42,6 +53,10 @@ class BleLeLight : public light::LightOutput, public Component, public Parented<
   void set_interval(uint16_t val) { this->interval_ = val; }
   void set_tx_power(esp_power_level_t val) { this->tx_power_ = val; }
   void set_encoder(const std::string &hex);
+
+  std::unique_ptr<light::LightTransformer> create_default_transition() {
+    return make_unique<NoLightTransitionTransformer>();
+  }
 
  protected:
   light::LightState *state_{nullptr};
