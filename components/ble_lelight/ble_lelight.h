@@ -23,12 +23,10 @@ struct LeLampCommand {
   float value;
 };
 
-class NoLightTransitionTransformer : public light::LightTransitionTransformer {
+class NoTransitionLightTransformer : public light::LightTransformer {
  public:
-  void setup(const light::LightColorValues &start_values, const light::LightColorValues &target_values,
-             uint32_t length) {
-    light::LightTransitionTransformer::setup(start_values, target_values, 0);
-  }
+  bool is_finished() override { return true; }
+  optional<light::LightColorValues> apply() override { return light::LightColorValues(this->target_values_); }
 };
 
 class BleLeLight : public light::LightOutput,
@@ -55,7 +53,7 @@ class BleLeLight : public light::LightOutput,
   void set_encoder(const std::string &hex);
 
   std::unique_ptr<light::LightTransformer> create_default_transition() override {
-    return make_unique<NoLightTransitionTransformer>();
+    return make_unique<NoTransitionLightTransformer>();
   }
 
  protected:

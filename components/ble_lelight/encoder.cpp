@@ -25,7 +25,7 @@ std::vector<uint8_t> encode(uint8_t salt, const std::vector<uint8_t> &data) {
 
 std::vector<uint8_t> BleLeEncoder::message(const BleLeCommand &command) {
   message_id++;
-  if (message_id >= 255)
+  if (message_id == 120)
     message_id = 1;
 
   std::vector<uint8_t> data(command.value.size() + 11, 0);
