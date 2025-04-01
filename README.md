@@ -13,6 +13,9 @@ esp32:
   framework:
     type: esp-idf # Recommended for BLE instead of arduino
 
+esphome:
+  name: esp # Use short name. Long names may cause problems with BLE
+
 # Load integration
 external_components:
   - source: github://v1ack/lelight-esphome
