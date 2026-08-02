@@ -1,58 +1,58 @@
-#include <vector>
-#include <random>
+#include "encoder.h"
+
+#include <algorithm>
 #include <cstring>
 
-#include "encoder.h"
+#include <esp_random.h>
 
 namespace esphome {
 namespace lelight_encode {
 
 uint8_t checksum(const std::vector<uint8_t> &data) {
   uint8_t sum = 0;
-  for (uint8_t b : data) {
-    sum += b;
-  }
-  return ~sum;
+  for (const uint8_t byte : data)
+    sum = static_cast<uint8_t>(sum + byte);
+  return static_cast<uint8_t>(~sum);
 }
 
 std::vector<uint8_t> encode(uint8_t salt, const std::vector<uint8_t> &data) {
-  std::vector<uint8_t> res(data.size(), 0);
-  for (size_t i = 0; i < data.size(); i++) {
-    res[i] = (i < 10) ? data[i] : static_cast<uint8_t>(data[i] ^ BleLeABC[salt & 15]);
-  }
-  return res;
+  std::vector<uint8_t> result(data);
+  const uint8_t key = BLE_LE_ABC[salt & 0x0F];
+
+  for (size_t i = 10; i < result.size(); i++)
+    result[i] ^= key;
+
+  return result;
+}
+
+uint8_t BleLeEncoder::next_message_id_() {
+  // Zero is skipped because the original implementation started at one.
+  // uint8_t wraparound itself is well-defined and does not corrupt memory.
+  this->message_id_++;
+  if (this->message_id_ == 0)
+    this->message_id_ = 1;
+  return this->message_id_;
 }
 
 std::vector<uint8_t> BleLeEncoder::message(const BleLeCommand &command) {
-  message_id++;
-  if (message_id == 120)
-    message_id = 1;
+  std::vector<uint8_t> payload(command.value.size() + 11, 0);
+  payload[0] = 0x01;
+  std::copy(this->lamp_id_.begin(), this->lamp_id_.end(), payload.begin() + 1);
+  payload[5] = 0xFE;
+  payload[6] = 0x00;
+  payload[7] = this->next_message_id_();
+  payload[8] = command.command;
+  payload[9] = static_cast<uint8_t>(command.value.size());
+  std::copy(command.value.begin(), command.value.end(), payload.begin() + 10);
+  payload.back() = checksum(std::vector<uint8_t>(payload.begin(), payload.end() - 1));
 
-  std::vector<uint8_t> data(command.value.size() + 11, 0);
-  data[0] = 1;
-  data[1] = mac[0];
-  data[2] = mac[1];
-  data[3] = mac[2];
-  data[4] = mac[3];
-  data[5] = 254;
-  data[6] = 0;
-  data[7] = message_id;
-  data[8] = command.command;
-  data[9] = command.value.size();
+  std::vector<uint8_t> packet(payload.size() + 5, 0);
+  const uint32_t random_prefix = esp_random();
+  std::memcpy(packet.data(), &random_prefix, sizeof(random_prefix));
+  packet[4] = static_cast<uint8_t>(payload.size());
+  std::copy(payload.begin(), payload.end(), packet.begin() + 5);
 
-  copy(command.value.begin(), command.value.end(), data.begin() + 10);
-  data[10 + command.value.size()] =
-      checksum(std::vector<uint8_t>(data.begin(), data.begin() + command.value.size() + 10));
-
-  std::vector<uint8_t> data2(data.size() + 5, 0);
-  for (int i = 0; i < 4; i++) {
-    data2[i] = static_cast<uint8_t>(rand() % 256);
-    // data2[i] = 0;
-  }
-  data2[4] = data.size();
-  copy(data.begin(), data.end(), data2.begin() + 5);
-
-  return encode(mac[0], data2);
+  return encode(this->lamp_id_[0], packet);
 }
 
 }  // namespace lelight_encode
